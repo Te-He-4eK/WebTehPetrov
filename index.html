@@ -1,49 +1,30 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
+
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" type="text/css" href="styles.css">
-    <title>Петров Руслан Сергеевич</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles.css">
+  <title>Петров Руслан</title>
 </head>
-<body>
-    <main>
-        <div class="container">
-            <div class="header">Список задач</div>
-            <div class="task-input">
-                <div class="title">Новая задача</div>
-                <div class="input-container">
-                    <input type="text" id="taskInput" placeholder="Название задачи...">
-                    <button>+ Добавить</button>
-                </div>
-            </div>
-            <div class="task-board">
-                <div class="column backlog">
-                    <div class="column-title">Бэклог</div>
-                    <div id="backlog-tasks">
-                        <div class="task">Выучить JS</div>
-                        <div class="task">Выучить React</div>
-                        <div class="task">Сделать домашку</div>
-                    </div>
-                </div>
-                <div class="column in-progress">
-                    <div class="column-title">В процессе</div>
-                    <div class="task">Выпить сок</div>
-                    <div class="task">Попить воды</div>
-                </div>
-                <div class="column done">
-                    <div class="column-title">Готово</div>
-                    <div class="task">Позвонить маме</div>
-                    <div class="task">Погладить кота</div>
-                </div>
-                <div class="column trash">
-                    <div class="column-title">Корзина</div>
-                    <div class="task">Сходить погулять</div>
-                    <div class="task">Прочитать Войну и Мир</div>
-                    <div class="clear-btn">✖️ Очистить</div>
-                </div>
-            </div>
-        </div>
-    </main>
+
+
+<body class="board-app">
+
+
+  <main class="board-app__main">
+    <div class="board-app__inner">
+      <section class="add-task">
+
+
+      </section>
+      <section class="taskboard">
+
+
+      </section>
+    </div>
+  </main>
+  <script src="src/main.js" type="module"></script>
 </body>
 </html>
