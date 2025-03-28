@@ -3,7 +3,7 @@ import FormAddTaskComponent from './view/form-add-task-component.js';
 import TaskBoardComponent from './view/task-board-component.js';
 import TaskListComponent from './view/task-list-component.js';
 import TaskComponent from './view/task-component.js';
-import { render } from './render.js';
+import { render } from './framework/render.js';
 
 const bodyContainer = document.querySelector('.board-app');
 const formContainer = document.querySelector('.add-task');
@@ -14,18 +14,14 @@ render(new FormAddTaskComponent(), formContainer);
 const boardComponent = new TaskBoardComponent();
 render(boardComponent, taskBoardContainer);
 
-const taskLists = [];
+const taskList = new TaskListComponent();
+render(taskList, boardComponent.getElement());
+
 for (let i = 0; i < 4; i++) {
-    const taskList = new TaskListComponent();
-    render(taskList, boardComponent.getElement());
-    taskLists.push(taskList);
+    render(new TaskComponent(`Задача ${i + 1}`), taskList.getElement());
 }
 
-taskLists.forEach(taskList => {
-    for (let i = 0; i < 4; i++) {
-        render(new TaskComponent(`Задача ${i + 1}`), taskList.getElement());
-    }
-});
+;
 
 const taskBoard = document.querySelector('.taskboard');
 if (taskBoard) {
