@@ -1,27 +1,86 @@
 import { createElement } from '../framework/render.js';
 
-function createTaskComponentTemplate(taskText) {
-    return `<li class="task" style="display: flex; align-items: center; justify-content: space-between; padding: 10px; border-radius: 5px; background: white; box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1); margin-bottom: 10px; width: 100%;">${taskText}</li>`;
-}
+/**
+ * @param {Object} task 
+ * @param {number} task.id 
+ * @param {string} task.title 
+ * @param {string} task.status 
+ * @return {string} 
+ */
+const createTaskTemplate = (task) => {
+  return `
+    <div class="task" data-task-id="${task.id}" data-status="${task.status}">
+      <div class="task__header">
+        <span class="task__title">${task.title}</span>
+        <button class="task__delete-btn" aria-label="Удалить задачу" title="Удалить">
+          <svg class="delete-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  `;
+};
 
 export default class TaskComponent {
-    constructor(taskText) {
-        this.taskText = taskText;
-    }
+  /**
+   * @param {Object} task 
+   * @param {Object} handlers 
+   * @param {Function} handlers.onDelete 
+   */
+  constructor(task, handlers = {}) {
+    this._task = task;
+    this._handlers = handlers;
+    this._element = null;
+    this._deleteButton = null;
+  }
 
-    getTemplate() {
-        return createTaskComponentTemplate(this.taskText);
-    }
+  /**
+   * @return {string}
+   */
+  getTemplate() {
+    return createTaskTemplate(this._task);
+  }
 
-    getElement() {
-        if (!this.element) {
-            this.element = createElement(this.getTemplate());
-        }
-        return this.element;
+  /**
+   * @return {HTMLElement}
+   */
+  getElement() {
+    if (!this._element) {
+      this._element = createElement(this.getTemplate());
+      this._setEventListeners();
     }
+    return this._element;
+  }
 
-    removeElement() {
-        this.element = null;
+  /**
+   * @private
+   */
+  _setEventListeners() {
+    this._deleteButton = this._element.querySelector('.task__delete-btn');
+    
+    if (this._deleteButton && this._handlers.onDelete) {
+      this._deleteButton.addEventListener('click', (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        this._handlers.onDelete();
+      });
+      
+      this._deleteButton.addEventListener('mouseenter', () => {
+        this._deleteButton.classList.add('hover');
+      });
+      
+      this._deleteButton.addEventListener('mouseleave', () => {
+        this._deleteButton.classList.remove('hover');
+      });
     }
+  }
+
+  removeElement() {
+    if (this._deleteButton) {
+      this._deleteButton.removeEventListener('click', this._handlers.onDelete);
+      this._deleteButton = null;
+    }
+    this._element = null;
+  }
 }
-
