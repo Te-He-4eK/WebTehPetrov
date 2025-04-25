@@ -1,26 +1,43 @@
 import { tasks } from './mock/task.js';
 import TaskModel from './model/task-model.js';
+import BoardContainerComponent from './view/board-container-component.js';
 import TasksBoardPresenter from './presenter/tasks-board-presenter.js';
+import { render } from './framework/render.js';
 
-console.log('Initial tasks:', tasks);
+function initApp() {
+  try {
+    const taskModel = new TaskModel(tasks);
+    console.log('Model initialized with tasks:', taskModel.tasks); // Используем геттер tasks вместо getTasks()
 
-try {
-  const taskModel = new TaskModel(tasks);
-  
-  console.log('Model tasks:', taskModel.getTasks());
-  
-  const boardContainer = document.querySelector('.task-board');
-  
-  if (!boardContainer) {
-    throw new Error('Board container not found in DOM');
+    const boardContainerComponent = new BoardContainerComponent();
+    
+    const appContainer = document.querySelector('#app');
+    if (!appContainer) {
+      throw new Error('App container not found');
+    }
+    render(boardContainerComponent, appContainer);
+
+    const taskBoardElement = boardContainerComponent.element.querySelector('.task-board');
+    
+    if (!taskBoardElement) {
+      throw new Error('Task board element not found');
+    }
+
+    const boardPresenter = new TasksBoardPresenter({
+      container: taskBoardElement,
+      taskModel
+    });
+    boardPresenter.init();
+
+    console.log('Application initialized successfully');
+
+  } catch (error) {
+    console.error('Failed to initialize app:', error);
+    const errorElement = document.createElement('div');
+    errorElement.className = 'error-message';
+    errorElement.textContent = 'Произошла ошибка при загрузке приложения';
+    document.body.prepend(errorElement);
   }
-
-  const boardPresenter = new TasksBoardPresenter({
-    container: boardContainer,
-    taskModel
-  });
-  
-  boardPresenter.init();
-} catch (error) {
-  console.error('Initialization error:', error);
 }
+
+document.addEventListener('DOMContentLoaded', initApp);

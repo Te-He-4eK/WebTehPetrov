@@ -9,10 +9,9 @@ export default class TaskModel {
       ...task,
       status: task.status || TaskStatus.BACKLOG
     }));
-    this.#observers = []; 
   }
 
-  getTasks() {
+  get tasks() {
     return [...this.#tasks];
   }
 
@@ -24,13 +23,29 @@ export default class TaskModel {
     return this.#tasks.filter(task => task.status === status);
   }
 
+  addTask(title) {
+    const newTask = {
+      id: crypto.randomUUID(),
+      title,
+      status: TaskStatus.BACKLOG
+    };
+    this.#tasks.push(newTask);
+    this.#notifyObservers();
+    return newTask;
+  }
+
   changeTaskStatus(taskId, newStatus) {
     const task = this.getTaskById(taskId);
-    if (!task) return false;
-
+    if (!task || !Object.values(TaskStatus).includes(newStatus)) return false;
+    
     task.status = newStatus;
     this.#notifyObservers();
     return true;
+  }
+
+  deleteTask(taskId) {
+    this.#tasks = this.#tasks.filter(task => task.id !== taskId);
+    this.#notifyObservers();
   }
 
   addObserver(observer) {

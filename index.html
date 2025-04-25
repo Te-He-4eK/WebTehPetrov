@@ -5,49 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Петров Руслан</title>
   <link rel="stylesheet" href="styles.css">
+  <header class="header">
+    <div class="header-container">
+      <h1>Список задач</h1>
+    </div>
+  </header>
 </head>
 <body>
-  <div class="container">
-    <header class="header">
-      <h1>Список задач</h1>
-    </header>
-
-    <main class="board-container">
-      <section class="add-task__form">
-        <label for="newTaskInput">Новая задача:</label>
-        <div class="add-task__input-wrapper">
-          <input type="text" id="newTaskInput" placeholder="Введите название задачи...">
-          <button id="addTaskBtn">+ Добавить</button>
-        </div>
-      </section>
-
-      <div class="task-board">
-        <div class="column backlog" data-status="backlog">
-          <div class="column-title">Бэклог</div>
-          <div class="task-list" id="backlog-tasks"></div>
-        </div>
-
-        <div class="column in-progress" data-status="in-progress">
-          <div class="column-title">В процессе</div>
-          <div class="task-list" id="in-progress-tasks"></div>
-        </div>
-
-        <div class="column done" data-status="done">
-          <div class="column-title">Готово</div>
-          <div class="task-list" id="done-tasks"></div>
-        </div>
-
-        <div class="column trash" data-status="trash">
-          <div class="column-title">Корзина</div>
-          <div class="task-list" id="trash-tasks"></div>
-        </div>
-      </div>
-    </main>
-  </div>
-
-  <script src="src/model/task-model.js" type="module"></script>
-  <script src="src/view/task-component.js" type="module"></script>
-  <script src="src/presenter/tasks-board-presenter.js" type="module"></script>
+  <div class="app" id="app"></div>
   <script src="src/main.js" type="module"></script>
 </body>
 </html>

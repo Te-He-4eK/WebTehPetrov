@@ -1,41 +1,44 @@
 import { TaskStatus } from '../const.js';
-import TaskComponent from '../view/task-component.js';
 import { render, remove } from '../framework/render.js';
+import TaskComponent from '../view/task-component.js';
+import EmptyTaskComponent from '../view/empty-task-component.js';
 import ClearButtonComponent from '../view/clear-button-component.js';
 
-export default class TasksBoardPresenter {
+export default class TaskBoardPresenter {
   #container = null;
   #taskModel = null;
   #taskComponents = new Map();
   #clearButtonComponent = null;
 
   constructor({ container, taskModel }) {
+    if (!container || !taskModel) {
+      throw new Error('Invalid arguments for TaskBoardPresenter');
+    }
+    
     this.#container = container;
     this.#taskModel = taskModel;
-    
-    if (this.#taskModel && typeof this.#taskModel.addObserver === 'function') {
-      this.#taskModel.addObserver(this.#handleModelChange);
-    } else {
-      console.error('TaskModel is not properly initialized');
-    }
+    this.#taskModel.addObserver(this.#handleModelChange);
   }
 
   init() {
     if (!this.#container) {
-      console.error('Container is not defined');
+      console.error('Container not set for TaskBoardPresenter');
       return;
     }
     this.#renderBoard();
-    this.#renderClearButton();
   }
 
   #renderBoard() {
     Object.values(TaskStatus).forEach(status => {
-      const columnElement = this.#container.querySelector(`[data-status="${status}"]`);
+      const columnElement = this.#getColumnElement(status);
       if (columnElement) {
         this.#renderColumn(status, columnElement);
       }
     });
+  }
+
+  #getColumnElement(status) {
+    return this.#container.querySelector(`[data-status="${status}"]`);
   }
 
   #renderColumn(status, columnElement) {
@@ -48,26 +51,36 @@ export default class TasksBoardPresenter {
     }
 
     taskListElement.innerHTML = '';
-    tasks.forEach(task => this.#renderTask(task, taskListElement));
-  }
-
-  #renderTask(task, container) {
-    const taskComponent = new TaskComponent(task, {
-      onDelete: () => this.#handleDeleteTask(task.id)
-    });
-
-    render(taskComponent, container);
-    this.#taskComponents.set(task.id, taskComponent);
-  }
-
-  #renderClearButton() {
-    const trashColumn = this.#container.querySelector(`[data-status="${TaskStatus.TRASH}"]`);
-    if (trashColumn) {
-      this.#clearButtonComponent = new ClearButtonComponent({
-        onClick: () => this.#handleClearTrash()
-      });
-      render(this.#clearButtonComponent, trashColumn);
+    
+    if (tasks.length === 0) {
+      this.#renderEmptyState(taskListElement);
+    } else {
+      this.#renderTasks(tasks, taskListElement);
+      if (status === TaskStatus.TRASH) {
+        this.#renderClearButton(columnElement);
+      }
     }
+  }
+
+  #renderTasks(tasks, container) {
+    tasks.forEach(task => {
+      const taskComponent = new TaskComponent(task, {
+        onDelete: () => this.#handleDeleteTask(task.id)
+      });
+      render(taskComponent, container);
+      this.#taskComponents.set(task.id, taskComponent);
+    });
+  }
+
+  #renderEmptyState(container) {
+    render(new EmptyTaskComponent(), container);
+  }
+
+  #renderClearButton(container) {
+    this.#clearButtonComponent = new ClearButtonComponent({
+      onClick: () => this.#handleClearTrash()
+    });
+    render(this.#clearButtonComponent, container);
   }
 
   #handleModelChange = () => {
@@ -79,19 +92,21 @@ export default class TasksBoardPresenter {
   }
 
   #handleClearTrash() {
-    if (confirm('Вы уверены, что хотите очистить корзину?')) {
-      this.#taskModel.getTasksByStatus(TaskStatus.TRASH).forEach(task => {
-        this.#taskModel.deleteTask(task.id);
-      });
+    const trashTasks = this.#taskModel.getTasksByStatus(TaskStatus.TRASH);
+    if (trashTasks.length > 0 && confirm('Очистить корзину?')) {
+      trashTasks.forEach(task => this.#taskModel.deleteTask(task.id));
     }
   }
 
   destroy() {
     this.#taskComponents.forEach(component => remove(component));
     this.#taskComponents.clear();
-    remove(this.#clearButtonComponent);
     
-    if (this.#taskModel && typeof this.#taskModel.removeObserver === 'function') {
+    if (this.#clearButtonComponent) {
+      remove(this.#clearButtonComponent);
+    }
+    
+    if (this.#taskModel) {
       this.#taskModel.removeObserver(this.#handleModelChange);
     }
   }
