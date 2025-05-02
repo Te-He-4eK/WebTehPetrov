@@ -1,113 +1,156 @@
-import { TaskStatus } from '../const.js';
-import { render, remove } from '../framework/render.js';
-import TaskComponent from '../view/task-component.js';
-import EmptyTaskComponent from '../view/empty-task-component.js';
-import ClearButtonComponent from '../view/clear-button-component.js';
+import TaskBoardComponent from "../view/task-board-component.js";
+import TaskListComponent from "../view/task-list-component.js";
+import TaskComponent from "../view/task-component.js";
+import DeleteButtonComponent from "../view/clear-button-component.js";
+import { Status, StatusLabel, UserAction, UpdateType } from "../const.js";
+import { render } from "../framework/render.js";
+import LoadingViewComponent from "../view/loading-view-component.js";
 
 export default class TaskBoardPresenter {
-  #container = null;
+  #boardContainer = null;
   #taskModel = null;
-  #taskComponents = new Map();
+  #taskBoardComponent = null;
+  #taskLists = {};
   #clearButtonComponent = null;
+  #loadingComponent = new LoadingViewComponent();
 
-  constructor({ container, taskModel }) {
-    if (!container || !taskModel) {
-      throw new Error('Invalid arguments for TaskBoardPresenter');
+  constructor({ boardContainer, taskModel }) {
+    if (!boardContainer) {
+      throw new Error('Board container element is required');
     }
-    
-    this.#container = container;
+
+    if (!taskModel || typeof taskModel.addObserver !== 'function') {
+      throw new Error('Valid taskModel with addObserver method is required');
+    }
+
+    this.#boardContainer = boardContainer;
     this.#taskModel = taskModel;
-    this.#taskModel.addObserver(this.#handleModelChange);
+    this.#taskModel.addObserver(this.#handleModelEvent);
+    this.#taskBoardComponent = new TaskBoardComponent();
   }
 
-  init() {
-    if (!this.#container) {
-      console.error('Container not set for TaskBoardPresenter');
-      return;
-    }
-    this.#renderBoard();
-  }
+  async init() {
+    try {
+      render(this.#loadingComponent, this.#boardContainer);
 
-  #renderBoard() {
-    Object.values(TaskStatus).forEach(status => {
-      const columnElement = this.#getColumnElement(status);
-      if (columnElement) {
-        this.#renderColumn(status, columnElement);
+      await this.#taskModel.init();
+
+      if (this.#loadingComponent && this.#loadingComponent.element) {
+        this.#loadingComponent.element.remove();
+        this.#loadingComponent = null;
       }
-    });
-  }
 
-  #getColumnElement(status) {
-    return this.#container.querySelector(`[data-status="${status}"]`);
-  }
+      render(this.#taskBoardComponent, this.#boardContainer);
+      this.#renderTasksList();
+    } catch (error) {
+      console.error('Task board initialization failed:', error);
 
-  #renderColumn(status, columnElement) {
-    const tasks = this.#taskModel.getTasksByStatus(status);
-    const taskListElement = columnElement.querySelector('.task-list');
-    
-    if (!taskListElement) {
-      console.error(`Task list not found for status: ${status}`);
-      return;
-    }
-
-    taskListElement.innerHTML = '';
-    
-    if (tasks.length === 0) {
-      this.#renderEmptyState(taskListElement);
-    } else {
-      this.#renderTasks(tasks, taskListElement);
-      if (status === TaskStatus.TRASH) {
-        this.#renderClearButton(columnElement);
+      if (this.#loadingComponent && this.#loadingComponent.element) {
+        this.#loadingComponent.element.remove();
+        this.#loadingComponent = null;
       }
     }
   }
 
-  #renderTasks(tasks, container) {
-    tasks.forEach(task => {
-      const taskComponent = new TaskComponent(task, {
-        onDelete: () => this.#handleDeleteTask(task.id)
+  async createTask(title) {
+    if (!title.trim()) return;
+
+    try {
+      await this.#taskModel.addTask(title.trim());
+    } catch (err) {
+      console.error('Failed to create task:', err);
+    }
+  }
+
+  #renderTasksList() {
+    this.#taskBoardComponent.element.innerHTML = ''; 
+    this.#taskLists = {}; 
+
+    Object.values(Status).forEach((status) => {
+      const tasks = this.#taskModel.tasks.filter(task => task.status === status);
+
+      const taskList = new TaskListComponent({
+        status,
+        label: StatusLabel[status],
+        onTaskDrop: this.#handleTaskDrop
       });
-      render(taskComponent, container);
-      this.#taskComponents.set(task.id, taskComponent);
+
+      this.#taskLists[status] = taskList;
+      render(taskList, this.#taskBoardComponent.element);
+
+      tasks.forEach(task => this.#renderTask(task, taskList));
+
+      if (status === Status.BASKET) {
+        this.#renderClearButton(taskList);
+      }
     });
   }
 
-  #renderEmptyState(container) {
-    render(new EmptyTaskComponent(), container);
-  }
-
-  #renderClearButton(container) {
-    this.#clearButtonComponent = new ClearButtonComponent({
-      onClick: () => this.#handleClearTrash()
+  #renderTask(task, listComponent) {
+    const taskComponent = new TaskComponent({
+      task,
+      onTaskDrop: this.#handleTaskDrop
     });
-    render(this.#clearButtonComponent, container);
+
+    render(taskComponent, listComponent.element.querySelector('.task-list'));
   }
 
-  #handleModelChange = () => {
-    this.#renderBoard();
+  #renderClearButton(listComponent) {
+    if (!this.#clearButtonComponent) {
+      this.#clearButtonComponent = new DeleteButtonComponent();
+      this.#clearButtonComponent.element.addEventListener('click', this.#handleClearBasketClick);
+      render(this.#clearButtonComponent, listComponent.element, 'afterend');
+    }
+    this.#updateClearButtonState();
+  }
+
+  #clearBoard() {
+    Object.values(this.#taskLists).forEach(component => component.removeElement());
+    this.#taskLists = {};
+    this.#clearButtonComponent?.removeElement();
+    this.#clearButtonComponent = null;
+  }
+
+  #handleTaskDrop = async (taskId, newStatus, beforeTaskId = null) => {
+    try {
+      await this.#taskModel.updateTaskStatus(taskId, newStatus, beforeTaskId);
+    } catch (err) {
+      console.error('Failed to update task status:', err);
+    }
   };
 
-  #handleDeleteTask(taskId) {
-    this.#taskModel.changeTaskStatus(taskId, TaskStatus.TRASH);
-  }
-
-  #handleClearTrash() {
-    const trashTasks = this.#taskModel.getTasksByStatus(TaskStatus.TRASH);
-    if (trashTasks.length > 0 && confirm('Очистить корзину?')) {
-      trashTasks.forEach(task => this.#taskModel.deleteTask(task.id));
+  #handleClearBasketClick = async () => {
+    try {
+      await this.#taskModel.clearBasketTasks();
+    } catch (err) {
+      console.error('Failed to clear basket:', err);
     }
-  }
+  };
 
-  destroy() {
-    this.#taskComponents.forEach(component => remove(component));
-    this.#taskComponents.clear();
-    
+  #handleModelEvent = (event, payload) => {
+    switch (event) {
+      case UserAction.ADD_TASK:
+      case UserAction.UPDATE_TASK:
+      case UserAction.DELETE_TASK:
+      case UpdateType.INIT:
+        if (this.#loadingComponent && this.#loadingComponent.element) {
+          this.#loadingComponent.element.remove();
+          this.#loadingComponent = null;
+        }
+
+        this.#clearBoard();
+        this.#renderTasksList();
+        break;
+
+      default:
+        console.warn(`Unhandled model event: ${event}`);
+    }
+  };
+
+  #updateClearButtonState() {
     if (this.#clearButtonComponent) {
-      remove(this.#clearButtonComponent);
-    }
-    
-    if (this.#taskModel) {
-      this.#taskModel.removeObserver(this.#handleModelChange);
+      const hasBasketTasks = this.#taskModel.tasks.some(task => task.status === Status.BASKET);
+      this.#clearButtonComponent.element.disabled = !hasBasketTasks;
     }
   }
 }

@@ -1,43 +1,35 @@
-import { tasks } from './mock/task.js';
-import TaskModel from './model/task-model.js';
-import BoardContainerComponent from './view/board-container-component.js';
-import TasksBoardPresenter from './presenter/tasks-board-presenter.js';
-import { render } from './framework/render.js';
+import HeaderComponent from './view/header-component.js';
+import AddTaskFormComponent from './view/form-add-task-component.js';
+import TaskBoardPresenter from './presenter/tasks-board-presenter.js';
+import { render, RenderPosition } from './framework/render.js';
+import TasksModel from './model/task-model.js';
+import TasksApiService from './tasks-api-service.js';
 
-function initApp() {
-  try {
-    const taskModel = new TaskModel(tasks);
-    console.log('Model initialized with tasks:', taskModel.tasks); // Используем геттер tasks вместо getTasks()
+const bodyContainer = document.querySelector('.board-app');
+const END_POINT = 'https://6815013e225ff1af162ace92.mockapi.io/';
 
-    const boardContainerComponent = new BoardContainerComponent();
-    
-    const appContainer = document.querySelector('#app');
-    if (!appContainer) {
-      throw new Error('App container not found');
-    }
-    render(boardContainerComponent, appContainer);
+const taskModel = new TasksModel({
+  tasksApiService: new TasksApiService(END_POINT),
+});
 
-    const taskBoardElement = boardContainerComponent.element.querySelector('.task-board');
-    
-    if (!taskBoardElement) {
-      throw new Error('Task board element not found');
-    }
+const tasksBoardPresenter = new TaskBoardPresenter({
+  boardContainer: bodyContainer,
+  taskModel, 
+});
 
-    const boardPresenter = new TasksBoardPresenter({
-      container: taskBoardElement,
-      taskModel
-    });
-    boardPresenter.init();
+render(new HeaderComponent(), bodyContainer, RenderPosition.BEFOREBEGIN);
+render(new AddTaskFormComponent(), bodyContainer, RenderPosition.BEFOREEND);
 
-    console.log('Application initialized successfully');
+tasksBoardPresenter.init();
 
-  } catch (error) {
-    console.error('Failed to initialize app:', error);
-    const errorElement = document.createElement('div');
-    errorElement.className = 'error-message';
-    errorElement.textContent = 'Произошла ошибка при загрузке приложения';
-    document.body.prepend(errorElement);
-  }
-}
+const addTaskFormElement = document.querySelector('.add-task__form');
+const inputElement = addTaskFormElement.querySelector('#add-task');
 
-document.addEventListener('DOMContentLoaded', initApp);
+addTaskFormElement.addEventListener('submit', (evt) => {
+  evt.preventDefault();
+  const taskTitle = inputElement.value.trim();
+  if (taskTitle === '') return;
+
+  tasksBoardPresenter.createTask(taskTitle);
+  inputElement.value = '';
+});

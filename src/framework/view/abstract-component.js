@@ -1,11 +1,11 @@
-import { createElement } from "../render.js";
+import { createElement } from '../render.js';
 
 export class AbstractComponent {
   #element = null;
 
   constructor() {
     if (new.target === AbstractComponent) {
-      throw new Error('Can\'t instantiate AbstractComponent, only concrete one.');
+      throw new Error('Нельзя создавать экземпляры AbstractComponent напрямую');
     }
   }
 
@@ -17,7 +17,7 @@ export class AbstractComponent {
   }
 
   get template() {
-    throw new Error('Abstract method not implemented: get template');
+    throw new Error('Абстрактный метод не реализован: get template');
   }
 
   removeElement() {

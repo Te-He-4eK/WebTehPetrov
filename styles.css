@@ -1,27 +1,13 @@
-:root {
-  --header-bg: #1e73e8;
-  --button-bg: #1e73e8;
-  --clear-btn-bg: #d9534f;
-  --task-bg: #ffffff;
-  --border-color: #ccc;
-  --backlog-color: rgba(100, 100, 100, 0.25);
-  --process-color: rgba(100, 100, 255, 0.25);
-  --done-color: rgba(100, 255, 100, 0.25);
-  --trash-color: rgba(255, 100, 100, 0.25);
-}
-
 body {
   font-family: Arial, sans-serif;
-  margin: 0;
   padding: 0 5rem;
   background-color: #eef3fc;
   width: 70%;
-  margin: auto;
+  margin: 0 auto;
 }
 
 header {
-  font-family: Arial, sans-serif;
-  background-color: #1e73e8;
+  background-color: #407aca;
   color: white;
   padding: 0.5vw 4.3vw;
   text-align: left;
@@ -30,15 +16,12 @@ header {
   margin-bottom: 3rem;
 }
 
-
 .add-task__form {
-  background: var(--task-bg);
+  background: rgb(124, 122, 122);
   padding: 1.5rem 2rem;
-  border-radius: 0.625rem;
   display: inline-flex;
   gap: 1rem;
   align-items: center;
-  margin-bottom: 2rem;
 }
 
 .add-task__form label {
@@ -53,21 +36,19 @@ header {
   gap: 1rem;
 }
 
-.add-task__input-wrapper input {
+input {
   flex-grow: 1;
   padding: 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: 0.3125rem;
+  border: 1px solid #ccc;
   font-size: 1rem;
 }
 
-.add-task__button {
-  background: var(--button-bg);
+button {
+  background: #084fe7;
   color: white;
   border: none;
   padding: 1rem 2.5rem;
   font-size: 1rem;
-  border-radius: 0.3125rem;
   cursor: pointer;
   align-self: flex-end;
 }
@@ -78,20 +59,15 @@ header {
   margin-top: 3rem;
 }
 
-.column {
+.backlog,
+.processing,
+.done,
+.basket {
   width: 14vw;
+
 }
 
-.column-title {
-  text-align: center;
-  border-radius: 0.3125rem;
-  padding: 0.625rem 1.25rem;
-  display: inline-block;
-  margin: 0.3125rem 0;
-  font-weight: bold;
-}
-
-.task-list {
+ul {
   list-style: none;
   margin-left: 0;
   padding: 0;
@@ -100,104 +76,74 @@ header {
   gap: 0.5rem;
 }
 
-.task {
-  background: var(--task-bg);
+li {
+  background: rgb(196, 193, 193);
   padding: 1.25rem;
   font-size: 1rem;
   font-weight: bold;
-  border-radius: 0.625rem;
 }
 
-.backlog .column-title {
-  background: rgba(100, 100, 100, 0.2);
-  color: rgb(100, 100, 100);
+h3 {
+  text-align: center;
+  padding: 0.625rem 1.25rem;
+  display: inline-block;
+  margin: 0.3125rem 0;
+}
+
+.backlog h3 {
+  background: rgba(0, 0, 0, 0.2);
+  color: rgb(0, 0, 0);
 }
 
 .backlog .task {
-  border-left: 0.4375rem solid var(--backlog-color);
+  border-left: 0.4375rem solid rgba(44, 38, 38, 0.25);
 }
 
-.process .column-title {
-  background: rgba(100, 100, 255, 0.2);
-  color: rgb(100, 100, 255);
+.processing h3 {
+  background: rgb(204, 230, 90);
+  color: rgb(68, 70, 46);
 }
 
-.process .task {
-  border-left: 0.4375rem solid var(--process-color);
+.processing .task {
+  border-left: 0.4375rem solid rgba(173, 245, 5, 0.932);
 }
 
-.done .column-title {
-  background: rgba(100, 255, 100, 0.2);
-  color: rgb(0, 200, 100);
+.done h3 {
+  background: rgba(6, 236, 6, 0.2);
+  color: rgb(0, 146, 12);
 }
 
 .done .task {
-  border-left: 0.5rem solid var(--done-color);
+  border-left: 0.5rem solid rgb(10, 248, 10);
 }
 
-.trash .column-title {
-  background: rgba(255, 100, 100, 0.2);
-  color: rgb(200, 100, 100);
+.basket h3 {
+  background: rgba(231, 3, 3, 0.2);
+  color: rgb(253, 12, 12);
 }
 
-.trash .task {
-  border-left: 0.5rem solid var(--trash-color);
+.basket .task {
+  border-left: 0.5rem solid rgb(231, 15, 15);
 }
 
-.clear-btn {
-  background: var(--clear-btn-bg);
+.delate-btn {
+  background: #f00c04;
   color: white;
   width: 100%;
-  border: none;
-  padding: 0.5rem;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  font-weight: bold;
-  margin-top: 0.5rem;
 }
 
-@media (max-width: 1200px) {
-  body {
-    width: 85%;
-    padding: 0 3rem;
-  }
-  
-  .task-board {
-    gap: 2rem;
-  }
-  
-  .column {
-    width: 18vw;
-  }
+.task-empty {
+  color: #030303;
+  font-style: italic;
+  border: 1px dashed #000000;
+  height: 100%;
 }
 
-@media (max-width: 768px) {
-  body {
-    width: 95%;
-    padding: 0 1rem;
-  }
-  
-  .task-board {
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-  
-  .column {
-    width: 100%;
-  }
-  
-  .add-task__form {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .add-task__button {
-    align-self: stretch;
-  }
-  .task-list__empty {
-    text-align: center;
-    padding: 2rem;
-    color: #666;
-    font-style: italic;
-  }
+.board_no-tasks {
+  text-align: center;
+  font-size: 20px;
+  color: #555;
+  margin: 30px 0;
 }
+
+

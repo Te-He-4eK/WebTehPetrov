@@ -1,32 +1,52 @@
 import { AbstractComponent } from '../framework/view/abstract-component.js';
 
-export default class TaskComponent extends AbstractComponent {
-  #task = null;
-  #handlers = null;
+function createTaskComponentTemplate(task) {
+  return `<li class="task">${task.title}</li>`;
+}
 
-  constructor(task, handlers = {}) {
+export default class TaskComponent extends AbstractComponent {
+  constructor({ task, onTaskDrop }) {
     super();
-    this.#task = task;
-    this.#handlers = handlers;
+    this.task = task;
+    this.#onTaskDrop = onTaskDrop;
+
+    this.#makeDraggable();
+    this.#setDropHandler();
   }
 
   get template() {
-    return `
-      <div class="task" data-task-id="${this.#task.id}" data-status="${this.#task.status}">
-        <div class="task__header">
-          <span class="task__title">${this.#task.title}</span>
-        
-          </button>
-        </div>
-      </div>
-    `;
+    return createTaskComponentTemplate(this.task);
   }
 
-  _setEventListeners() {
-    this.element.querySelector('.task__delete-btn')
-      .addEventListener('click', (evt) => {
-        evt.preventDefault();
-        this.#handlers.onDelete?.();
-      });
+  #onTaskDrop = null;
+
+  #makeDraggable() {
+    this.element.setAttribute('draggable', true);
+
+    this.element.addEventListener('dragstart', (event) => {
+      event.dataTransfer.setData('text/plain', this.task.id);
+    });
+  }
+
+  #setDropHandler() {
+    this.element.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      this.element.style.borderTop = '2px solid #000';
+    });
+
+    this.element.addEventListener('dragleave', () => {
+      this.element.style.borderTop = '';
+    });
+
+    this.element.addEventListener('drop', (event) => {
+      event.preventDefault();
+      this.element.style.borderTop = '';
+
+      const draggedTaskId = event.dataTransfer.getData('text/plain');
+
+      if (this.#onTaskDrop) {
+        this.#onTaskDrop(draggedTaskId, this.task.status);
+      }
+    });
   }
 }

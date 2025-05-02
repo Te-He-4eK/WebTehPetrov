@@ -1,62 +1,23 @@
-import { createElement } from '../framework/render.js';
+import { AbstractComponent } from '../framework/view/abstract-component.js';
 
-/**
- * @return {string} HTML-строка
- */
-function createClearButtonTemplate() {
-  return `
-    <button class="clear-btn" aria-label="Очистить корзину">
-      Очистить корзину
-    </button>
-  `;
+function createDeleteButtonComponentTemplate() {
+  return (
+    `<button class="delate-btn" type="button">
+        <span>✖ Очистить</span>
+    </button>`
+  );
 }
 
-/**
- * @class
- */
-export default class ClearButtonComponent {
-  constructor({ onClick }) {
-    this._onClick = onClick;
-    this._element = null;
-    this._button = null;
+export default class DeleteBtnComponent extends AbstractComponent {
+  get template() {
+    return createDeleteButtonComponentTemplate();
   }
 
-  /**
-   * @return {string}
-   */
-  getTemplate() {
-    return createClearButtonTemplate();
+  setClickHandler(callback) {
+    this.element.addEventListener('click', callback);
   }
 
-  /**
-   * @return {HTMLElement}
-   */
-  getElement() {
-    if (!this._element) {
-      this._element = createElement(this.getTemplate());
-      this._button = this._element.querySelector('.clear-btn');
-      this._setEventListeners();
-    }
-    return this._element;
-  }
-
-  /**
-   * @private
-   */
-  _setEventListeners() {
-    if (this._button && this._onClick) {
-      this._button.addEventListener('click', (evt) => {
-        evt.preventDefault();
-        this._onClick();
-      });
-    }
-  }
-
-    removeElement() {
-    if (this._button) {
-      this._button.removeEventListener('click', this._onClick);
-      this._button = null;
-    }
-    this._element = null;
+  setDisabled(isDisabled) {
+    this.element.disabled = isDisabled;
   }
 }
