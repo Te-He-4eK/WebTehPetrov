@@ -1,28 +1,22 @@
 import TaskBoardComponent from "../view/task-board-component.js";
 import TaskListComponent from "../view/task-list-component.js";
 import TaskComponent from "../view/task-component.js";
+import AddTaskFormComponent from "../view/form-add-task-component.js";
 import DeleteButtonComponent from "../view/clear-button-component.js";
 import { Status, StatusLabel, UserAction, UpdateType } from "../const.js";
-import { render } from "../framework/render.js";
+import { render, remove, RenderPosition } from "../framework/render.js";
 import LoadingViewComponent from "../view/loading-view-component.js";
 
 export default class TaskBoardPresenter {
   #boardContainer = null;
   #taskModel = null;
   #taskBoardComponent = null;
-  #taskLists = {};
-  #clearButtonComponent = null;
+  #addTaskFormComponent = null;
+  #taskListComponents = new Map();
   #loadingComponent = new LoadingViewComponent();
+  #isInitialized = false;
 
   constructor({ boardContainer, taskModel }) {
-    if (!boardContainer) {
-      throw new Error('Board container element is required');
-    }
-
-    if (!taskModel || typeof taskModel.addObserver !== 'function') {
-      throw new Error('Valid taskModel with addObserver method is required');
-    }
-
     this.#boardContainer = boardContainer;
     this.#taskModel = taskModel;
     this.#taskModel.addObserver(this.#handleModelEvent);
@@ -30,60 +24,71 @@ export default class TaskBoardPresenter {
   }
 
   async init() {
+    if (this.#isInitialized) return;
+    
     try {
       render(this.#loadingComponent, this.#boardContainer);
-
       await this.#taskModel.init();
-
-      if (this.#loadingComponent && this.#loadingComponent.element) {
-        this.#loadingComponent.element.remove();
-        this.#loadingComponent = null;
-      }
-
-      render(this.#taskBoardComponent, this.#boardContainer);
-      this.#renderTasksList();
+      remove(this.#loadingComponent);
+      this.#renderBoard();
+      this.#renderAddTaskForm();
+      this.#isInitialized = true;
     } catch (error) {
-      console.error('Task board initialization failed:', error);
-
-      if (this.#loadingComponent && this.#loadingComponent.element) {
-        this.#loadingComponent.element.remove();
-        this.#loadingComponent = null;
-      }
+      remove(this.#loadingComponent);
+      console.error('Initialization failed:', error);
     }
   }
 
-  async createTask(title) {
-    if (!title.trim()) return;
-
-    try {
-      await this.#taskModel.addTask(title.trim());
-    } catch (err) {
-      console.error('Failed to create task:', err);
+  #renderBoard() {
+    if (this.#boardContainer.contains(this.#taskBoardComponent.element)) {
+      this.#boardContainer.innerHTML = '';
     }
+    render(this.#taskBoardComponent, this.#boardContainer);
+    this.#renderAllTaskLists();
   }
 
-  #renderTasksList() {
-    this.#taskBoardComponent.element.innerHTML = ''; 
-    this.#taskLists = {}; 
+  #renderAddTaskForm() {
+    if (this.#addTaskFormComponent) {
+      remove(this.#addTaskFormComponent);
+    }
 
-    Object.values(Status).forEach((status) => {
-      const tasks = this.#taskModel.tasks.filter(task => task.status === status);
-
-      const taskList = new TaskListComponent({
-        status,
-        label: StatusLabel[status],
-        onTaskDrop: this.#handleTaskDrop
-      });
-
-      this.#taskLists[status] = taskList;
-      render(taskList, this.#taskBoardComponent.element);
-
-      tasks.forEach(task => this.#renderTask(task, taskList));
-
-      if (status === Status.BASKET) {
-        this.#renderClearButton(taskList);
-      }
+    this.#addTaskFormComponent = new AddTaskFormComponent();
+    this.#addTaskFormComponent.setSubmitHandler((title) => {
+      this.#taskModel.addTask(title)
+        .catch(err => console.error('Failed to add task:', err));
     });
+    render(this.#addTaskFormComponent, this.#boardContainer, RenderPosition.AFTERBEGIN);
+  }
+
+  #renderAllTaskLists() {
+    this.#taskListComponents.forEach(component => remove(component));
+    this.#taskListComponents.clear();
+
+    Object.values(Status).forEach(status => {
+      this.#renderTaskList(status);
+    });
+  }
+
+  #renderTaskList(status) {
+    const tasks = this.#taskModel.getTasksByStatus(status);
+    const taskListComponent = new TaskListComponent({
+      status,
+      label: StatusLabel[status],
+      onTaskDrop: this.#handleTaskDrop
+    });
+
+    this.#taskListComponents.set(status, taskListComponent);
+    render(taskListComponent, this.#taskBoardComponent.element);
+
+    if (tasks.length > 0) {
+      tasks.forEach(task => this.#renderTask(task, taskListComponent));
+      
+      if (status === Status.BASKET) {
+        this.#renderDeleteButton(taskListComponent);
+      }
+    } else if (status === Status.BASKET) {
+      this.#renderEmptyBasket(taskListComponent);
+    }
   }
 
   #renderTask(task, listComponent) {
@@ -91,31 +96,31 @@ export default class TaskBoardPresenter {
       task,
       onTaskDrop: this.#handleTaskDrop
     });
-
     render(taskComponent, listComponent.element.querySelector('.task-list'));
   }
 
-  #renderClearButton(listComponent) {
-    if (!this.#clearButtonComponent) {
-      this.#clearButtonComponent = new DeleteButtonComponent();
-      this.#clearButtonComponent.element.addEventListener('click', this.#handleClearBasketClick);
-      render(this.#clearButtonComponent, listComponent.element, 'afterend');
-    }
-    this.#updateClearButtonState();
+  #renderDeleteButton(container) {
+    const deleteButton = new DeleteButtonComponent();
+    deleteButton.setClickHandler(() => {
+      if (confirm('Вы уверены, что хотите очистить корзину?')) {
+        this.#handleClearBasketClick();
+      }
+    });
+    render(deleteButton, container.element);
   }
 
-  #clearBoard() {
-    Object.values(this.#taskLists).forEach(component => component.removeElement());
-    this.#taskLists = {};
-    this.#clearButtonComponent?.removeElement();
-    this.#clearButtonComponent = null;
+  #renderEmptyBasket(container) {
+    const emptyElement = document.createElement('p');
+    emptyElement.textContent = 'Корзина пуста';
+    emptyElement.className = 'empty-basket';
+    container.element.querySelector('.task-list').append(emptyElement);
   }
 
-  #handleTaskDrop = async (taskId, newStatus, beforeTaskId = null) => {
+  #handleTaskDrop = async (taskId, newStatus) => {
     try {
-      await this.#taskModel.updateTaskStatus(taskId, newStatus, beforeTaskId);
+      await this.#taskModel.updateTaskStatus(taskId, newStatus);
     } catch (err) {
-      console.error('Failed to update task status:', err);
+      console.error('Failed to update task:', err);
     }
   };
 
@@ -127,30 +132,50 @@ export default class TaskBoardPresenter {
     }
   };
 
-  #handleModelEvent = (event, payload) => {
+  #handleModelEvent = (event) => {
+    if (this.#loadingComponent?.element) {
+      remove(this.#loadingComponent);
+    }
+    
     switch (event) {
-      case UserAction.ADD_TASK:
-      case UserAction.UPDATE_TASK:
-      case UserAction.DELETE_TASK:
       case UpdateType.INIT:
-        if (this.#loadingComponent && this.#loadingComponent.element) {
-          this.#loadingComponent.element.remove();
-          this.#loadingComponent = null;
+        if (!this.#isInitialized) {
+          this.#renderBoard();
+          this.#renderAddTaskForm();
+          this.#isInitialized = true;
         }
-
-        this.#clearBoard();
-        this.#renderTasksList();
         break;
-
+        
+      case UpdateType.MAJOR:
+        this.#renderAllTaskLists();
+        break;
+        
+      case UpdateType.MINOR:
+        this.#updateTaskLists();
+        break;
+        
       default:
-        console.warn(`Unhandled model event: ${event}`);
+        this.#renderAllTaskLists();
     }
   };
 
-  #updateClearButtonState() {
-    if (this.#clearButtonComponent) {
-      const hasBasketTasks = this.#taskModel.tasks.some(task => task.status === Status.BASKET);
-      this.#clearButtonComponent.element.disabled = !hasBasketTasks;
-    }
+  #updateTaskLists() {
+    this.#taskListComponents.forEach((listComponent, status) => {
+      const listElement = listComponent.element.querySelector('.task-list');
+      listElement.innerHTML = '';
+      
+      const tasks = this.#taskModel.getTasksByStatus(status);
+      tasks.forEach(task => this.#renderTask(task, listComponent));
+      
+      if (status === Status.BASKET) {
+        if (tasks.length > 0) {
+          if (!listComponent.element.querySelector('.delete-btn')) {
+            this.#renderDeleteButton(listComponent);
+          }
+        } else {
+          this.#renderEmptyBasket(listComponent);
+        }
+      }
+    });
   }
 }

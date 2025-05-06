@@ -1,10 +1,11 @@
 import Observable from '../framework/observable.js';
 import { generateID } from '../utils.js';
-import { UpdateType, UserAction } from '../const.js';
+import { UpdateType, UserAction, Status } from '../const.js';
 
 export default class TasksModel extends Observable {
   #tasksApiService = null;
-  #boardtasks = [];
+  #tasks = [];
+  #isInitialized = false;
 
   constructor({ tasksApiService }) {
     super();
@@ -12,98 +13,101 @@ export default class TasksModel extends Observable {
   }
 
   get tasks() {
-    return this.#boardtasks;
+    return this.#tasks;
+  }
+
+  get isInitialized() {
+    return this.#isInitialized;
+  }
+
+  getTasksByStatus(status) {
+    return this.#tasks.filter(task => task.status === status);
   }
 
   async init() {
+    if (this.#isInitialized) return;
+    
     try {
       const tasks = await this.#tasksApiService.tasks;
-      this.#boardtasks = tasks;
+      this.#tasks = tasks.map(this.#adaptToClient);
+      this.#isInitialized = true;
+      this._notify(UpdateType.INIT);
     } catch (err) {
-      this.#boardtasks = [];
-      console.error('Ошибка при загрузке задач с сервера:', err);
+      this.#tasks = [];
+      throw new Error('Failed to load tasks');
     }
-
-    this._notify(UpdateType.INIT);
   }
 
   async addTask(title) {
     const newTask = {
+      title: title.trim(),
+      status: Status.BACKLOG,
       id: generateID(),
-      title,
-      status: 'backlog',
+      created: new Date()
     };
 
-    try {
-      const createdTask = await this.#tasksApiService.addTask(newTask);
-      this.#boardtasks.push(createdTask);
-      this._notify(UserAction.ADD_TASK, createdTask);
-      return createdTask;
-    } catch (err) {
-      console.error('Ошибка при добавлении задачи на сервер:', err);
-      throw err;
-    }
-  }
-
-  deleteTask(taskId) {
-    this.#boardtasks = this.#boardtasks.filter(task => task.id !== taskId);
-    this._notify(UserAction.DELETE_TASK, { id: taskId });
-  }
-
-  async clearBasketTasks() {
-    const basketTasks = this.#boardtasks.filter(task => task.status === 'basket');
+    if (!newTask.title) return;
 
     try {
-      await Promise.all(basketTasks.map(task => this.#tasksApiService.deleteTask(task.id)));
-      this.#boardtasks = this.#boardtasks.filter(task => task.status !== 'basket');
-      this._notify(UserAction.DELETE_TASK, { status: 'basket' });
+      const response = await this.#tasksApiService.addTask(newTask);
+      const adaptedTask = this.#adaptToClient(response);
+      this.#tasks.push(adaptedTask);
+      this._notify(UserAction.ADD_TASK, adaptedTask);
+      return adaptedTask;
     } catch (err) {
-      console.error('Ошибка при удалении задач из корзины на сервере:', err);
-      throw err;
+      throw new Error('Failed to add task');
     }
-  }
-
-  hasBasketTasks() {
-    return this.#boardtasks.some(task => task.status === 'basket');
-  }
-
-  moveTask(taskId, newStatus, beforeTaskId = null) {
-    const taskIndex = this.#boardtasks.findIndex(task => task.id === taskId);
-    const task = this.#boardtasks[taskIndex];
-    if (!task) return;
-
-    this.#boardtasks.splice(taskIndex, 1);
-    task.status = newStatus;
-
-    if (beforeTaskId) {
-      const targetIndex = this.#boardtasks.findIndex(t => t.id === beforeTaskId);
-      if (targetIndex !== -1) {
-        this.#boardtasks.splice(targetIndex, 0, task);
-      } else {
-        this.#boardtasks.push(task);
-      }
-    } else {
-      this.#boardtasks.push(task);
-    }
-
-    this._notify(UpdateType.MOVE);
   }
 
   async updateTaskStatus(taskId, newStatus) {
-    const task = this.#boardtasks.find(task => task.id === taskId);
-    if (!task) return;
+    const taskIndex = this.#tasks.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) return;
 
-    const previousStatus = task.status;
+    const task = this.#tasks[taskIndex];
+    if (task.status === newStatus) return;
+
+    const oldStatus = task.status;
     task.status = newStatus;
 
     try {
-      const updatedTask = await this.#tasksApiService.updateTask(task);
-      Object.assign(task, updatedTask);
-      this._notify(UserAction.UPDATE_TASK, task);
+      const response = await this.#tasksApiService.updateTask(task);
+      const adaptedTask = this.#adaptToClient(response);
+      this.#tasks[taskIndex] = adaptedTask;
+      this._notify(UserAction.UPDATE_TASK, adaptedTask);
     } catch (err) {
-      console.error('Ошибка при обновлении статуса задачи на сервер:', err);
-      task.status = previousStatus;
-      throw err;
+      task.status = oldStatus;
+      throw new Error('Failed to update task');
     }
+  }
+
+  async clearBasketTasks() {
+    const basketTaskIds = this.#tasks
+      .filter(task => task.status === Status.BASKET)
+      .map(task => task.id);
+
+    if (basketTaskIds.length === 0) return;
+
+    try {
+      await Promise.all(basketTaskIds.map(id => 
+        this.#tasksApiService.deleteTask(id)
+      ));
+      
+      this.#tasks = this.#tasks.filter(task => 
+        !basketTaskIds.includes(task.id)
+      );
+      
+      this._notify(UpdateType.MAJOR);
+    } catch (err) {
+      throw new Error('Failed to clear basket');
+    }
+  }
+
+  #adaptToClient(task) {
+    return {
+      id: task.id,
+      title: task.title,
+      status: task.status || Status.BACKLOG,
+      created: task.created || new Date()
+    };
   }
 }
